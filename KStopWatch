@@ -1,0 +1,103 @@
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+
+public class KStopWatch {
+
+    private final static ConcurrentHashMap<String, Long[]> counter = new ConcurrentHashMap<String, Long[]>();
+    private final List<KStopWatch.TaskInfo> completeTaskList;
+    private final static KStopWatch stopWatch = new KStopWatch();
+    private KStopWatch(){
+        completeTaskList = new ArrayList<KStopWatch.TaskInfo>(128);
+    }
+
+    public static KStopWatch getInstance(){
+        return stopWatch;
+    }
+
+    public void start(String taskName){
+        String key = taskName + ";" + Thread.currentThread().getId();
+        Long[] times = new Long[2];
+        times[0] = 0L;
+        times[1] = System.currentTimeMillis();
+        Long[] oldTime = counter.putIfAbsent(key, times);
+        if(oldTime != null){
+            if(oldTime[0] == null){
+                oldTime[0] = 0L;
+            }else{
+                oldTime[0] += System.currentTimeMillis() - oldTime[1];
+            }
+            oldTime[1] = System.currentTimeMillis();
+            counter.put(key, oldTime);
+        }
+    }
+
+    public void stop(String taskName){
+        String key = taskName + ";" + Thread.currentThread().getId();
+        Long[] times = counter.get(key);
+        if(times == null || times[1] == null){
+            throw new RuntimeException("taskName:"+key+" not start!");
+        }
+        times[0] += System.currentTimeMillis() - times[1];
+        completeTaskList.add(new KStopWatch.TaskInfo(key, times[0]));
+        counter.remove(key);
+    }
+
+    @Override
+    public synchronized String toString() {
+        //StringBuilder sb = new StringBuilder("completeTask:" + completeTaskList.size() + "\n");
+        StringBuilder sb = new StringBuilder("total:\n");
+        Map<String, Long> totalMap = new HashMap<String, Long>(128);
+        Map<String, Long> detailMap = new HashMap<String, Long>(128);
+        for (int i = 0; i < completeTaskList.size(); i++) {
+            TaskInfo taskInfo = completeTaskList.get(i);
+            String method = taskInfo.getTaskName().split(";")[0];
+            if(!totalMap.containsKey(method)){
+                totalMap.put(method, 0L);
+            }
+            Long times = totalMap.get(method);
+            times += taskInfo.getTimeSeconds();
+            totalMap.put(method, times);
+
+            if(!detailMap.containsKey(taskInfo.getTaskName())){
+                detailMap.put(taskInfo.getTaskName(), 0L);
+            }
+            Long times1 = detailMap.get(taskInfo.getTaskName());
+            times1 += taskInfo.getTimeSeconds();
+            detailMap.put(taskInfo.getTaskName(), times1);
+
+            completeTaskList.remove(taskInfo);
+            i--;
+        }
+        sb.append(totalMap);
+        sb.append("\n");
+        sb.append("detail:\n");
+        sb.append(detailMap);
+        return sb.toString();
+    }
+
+
+    public static final class TaskInfo {
+        private final String taskName;
+        private final long timeMillis;
+
+        TaskInfo(String taskName, long timeMillis) {
+            this.taskName = taskName;
+            this.timeMillis = timeMillis;
+        }
+
+        public String getTaskName() {
+            return this.taskName;
+        }
+
+        public long getTimeMillis() {
+            return this.timeMillis;
+        }
+
+        public long getTimeSeconds() {
+            return TimeUnit.MILLISECONDS.toSeconds(this.timeMillis);
+        }
+
+        public double getTimeMinutes() { return TimeUnit.MILLISECONDS.toMinutes(this.timeMillis); }
+    }
+}
