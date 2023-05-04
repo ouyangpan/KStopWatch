@@ -1,0 +1,99 @@
+
+import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
+public class KStopWatchTest {
+
+    public static void main(String[] args) throws InterruptedException {
+        KStopWatchTest test = new KStopWatchTest();
+        test.threadTest();
+        test.threadPoolTest();
+    }
+
+    public void threadTest() throws InterruptedException {
+        KStopWatch sw = KStopWatch.getInstance();
+        for (int i = 0; i < 3; i++) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    long st = System.currentTimeMillis();
+                    sw.start("计算threadTest耗时");
+                    try {
+                        Thread.sleep((new Random().nextInt(2)+1)*1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    long ed = System.currentTimeMillis();
+                    System.out.println(Thread.currentThread().getId() + "-耗时：" + TimeUnit.MILLISECONDS.toSeconds(ed-st) + " s");
+                    sw.stop("计算threadTest耗时");
+                }
+            }).start();
+        }
+
+        Thread.sleep(11 * 1000);
+        System.out.println(sw.toString());
+    }
+
+    public void threadPoolTest() throws InterruptedException {
+        ExecutorService pool =
+                new ThreadPoolExecutor(5, 5, 30L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
+        ExecutorService pool1 =
+                new ThreadPoolExecutor(5, 5, 30L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
+        ExecutorService pool2 =
+                new ThreadPoolExecutor(5, 5, 30L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
+        KStopWatch sw = KStopWatch.getInstance();
+        for (int i = 0; i < 10; i++) {
+            pool.submit(() -> {
+                long st = System.currentTimeMillis();
+                sw.start("代码A");
+                try {
+                    Thread.sleep((new Random().nextInt(4)+1)*1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                long ed = System.currentTimeMillis();
+                //System.out.println(Thread.currentThread().getName() + "-耗时：" + TimeUnit.MILLISECONDS.toSeconds(ed-st) + " s");
+                sw.stop("代码A");
+            });
+        }
+
+        for (int i = 0; i < 10; i++) {
+            pool1.submit(() -> {
+                long st = System.currentTimeMillis();
+                sw.start("代码B");
+                try {
+                    Thread.sleep((new Random().nextInt(4)+1)*1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                long ed = System.currentTimeMillis();
+                //System.out.println(Thread.currentThread().getName() + "-耗时：" + TimeUnit.MILLISECONDS.toSeconds(ed-st) + " s");
+                sw.stop("代码B");
+            });
+        }
+
+        for (int i = 0; i < 10; i++) {
+            pool2.submit(() -> {
+                long st = System.currentTimeMillis();
+                sw.start("代码C");
+                try {
+                    Thread.sleep((new Random().nextInt(4)+1)*1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                long ed = System.currentTimeMillis();
+                //System.out.println(Thread.currentThread().getName() + "-耗时：" + TimeUnit.MILLISECONDS.toSeconds(ed-st) + " s");
+                sw.stop("代码C");
+            });
+        }
+
+        Thread.sleep(60 * 1000);
+        System.out.println(KStopWatch.getInstance().toString());
+        pool.shutdown();
+        pool1.shutdown();
+        pool2.shutdown();
+    }
+}
